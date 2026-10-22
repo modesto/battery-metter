@@ -6,8 +6,8 @@ import IOKit.hid
 final class LogitechBattery {
     private static let vendorID = 0x046d
     private static let longReport: UInt8 = 0x11
-    private static let softwareID: UInt8 = 0x0a
-    private static let timeout: CFTimeInterval = 0.5
+    /// A sleeping mouse can take over a second to answer the first request after waking.
+    private static let timeout: CFTimeInterval = 2
 
     private enum Feature: UInt16 {
         case root = 0x0000
@@ -134,7 +134,10 @@ final class LogitechBattery {
         report[0] = Self.longReport
         report[1] = index
         report[2] = feature
-        report[3] = function << 4 | Self.softwareID
+        // Rotate the software ID (1...15; 0 is reserved for notifications) so a late reply
+        // to a timed-out request is never mistaken for the reply to the next one.
+        softwareID = softwareID % 15 + 1
+        report[3] = function << 4 | softwareID
         for (i, p) in params.prefix(16).enumerated() { report[4 + i] = p }
 
         pending = (index, feature, report[3])
@@ -152,6 +155,7 @@ final class LogitechBattery {
     }
 
     private var pending: (index: UInt8, feature: UInt8, function: UInt8)?
+    private var softwareID: UInt8 = 0
 
     private func handle(_ report: [UInt8]) {
         guard let p = pending, report.count >= 5, report[1] == p.index else { return }
