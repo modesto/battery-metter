@@ -1,6 +1,6 @@
 import Foundation
 
-enum DeviceKind {
+enum DeviceKind: String, Codable {
     case headphones, mouse, keyboard, other
 
     var symbolName: String {
@@ -13,7 +13,7 @@ enum DeviceKind {
     }
 }
 
-struct BatteryDevice {
+struct BatteryDevice: Codable {
     let id: String
     let name: String
     let kind: DeviceKind

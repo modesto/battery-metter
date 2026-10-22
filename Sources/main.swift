@@ -4,6 +4,7 @@ import ServiceManagement
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private static let refreshInterval: TimeInterval = 60
     private static let lowBattery = 20
+    private static let savedDevicesKey = "lastKnownDevices"
 
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     private let queue = DispatchQueue(label: "battery-meter.refresh")
@@ -17,6 +18,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         statusItem.button?.title = "…"
+        loadSavedDevices()
+        if !lastSeen.isEmpty { updateTitle() }
         rebuildMenu()
         refresh()
         timer = Timer.scheduledTimer(withTimeInterval: Self.refreshInterval, repeats: true) { [weak self] _ in
@@ -39,8 +42,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         for key in lastSeen.keys { lastSeen[key]?.fresh = false }
         for device in bt + logi { lastSeen[device.id] = (device, true) }
         lastUpdate = Date()
+        saveDevices()
         updateTitle()
         rebuildMenu()
+    }
+
+    /// Restores last known levels so disconnected devices survive app/Mac restarts.
+    private func loadSavedDevices() {
+        guard let data = UserDefaults.standard.data(forKey: Self.savedDevicesKey),
+              let devices = try? JSONDecoder().decode([BatteryDevice].self, from: data) else { return }
+        for device in devices { lastSeen[device.id] = (device, false) }
+    }
+
+    private func saveDevices() {
+        guard let data = try? JSONEncoder().encode(lastSeen.values.map(\.device)) else { return }
+        UserDefaults.standard.set(data, forKey: Self.savedDevicesKey)
     }
 
     private var entries: [(device: BatteryDevice, fresh: Bool)] {
