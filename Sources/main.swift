@@ -11,9 +11,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var timer: Timer?
     private var lastUpdate: Date?
 
-    /// Logitech mice stop answering while asleep; keep showing their last known level (dimmed).
+    /// Devices that stop reporting (asleep mouse, disconnected headphones) keep
+    /// showing their last known level, dimmed.
     private var lastSeen: [String: (device: BatteryDevice, fresh: Bool)] = [:]
-    private var bluetooth: [BatteryDevice] = []
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         statusItem.button?.title = "…"
@@ -36,17 +36,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func apply(bluetooth bt: [BatteryDevice], logitech logi: [BatteryDevice]) {
-        bluetooth = bt
         for key in lastSeen.keys { lastSeen[key]?.fresh = false }
-        for device in logi { lastSeen[device.id] = (device, true) }
+        for device in bt + logi { lastSeen[device.id] = (device, true) }
         lastUpdate = Date()
         updateTitle()
         rebuildMenu()
     }
 
     private var entries: [(device: BatteryDevice, fresh: Bool)] {
-        let all = bluetooth.map { ($0, true) } + lastSeen.values.map { ($0.device, $0.fresh) }
-        return all.sorted { order($0.0.kind) < order($1.0.kind) }
+        lastSeen.values.sorted { order($0.device.kind) < order($1.device.kind) }
     }
 
     private func order(_ kind: DeviceKind) -> Int {
@@ -102,7 +100,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         for entry in entries {
             var text = "\(entry.device.name) — \(entry.device.percent)%"
             if entry.device.charging { text += " (charging)" }
-            if !entry.fresh { text += " (asleep, last known)" }
+            if !entry.fresh { text += " (not connected, last known)" }
             let item = NSMenuItem(title: text, action: nil, keyEquivalent: "")
             item.image = NSImage(systemSymbolName: entry.device.kind.symbolName, accessibilityDescription: nil)
             menu.addItem(item)
