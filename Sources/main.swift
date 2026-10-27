@@ -1,15 +1,19 @@
 import AppKit
+import IOBluetooth
 import ServiceManagement
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private static let refreshInterval: TimeInterval = 60
     private static let lowBattery = 20
     private static let savedDevicesKey = "lastKnownDevices"
+    /// Headphones take a few seconds after connecting to report their battery.
+    private static let connectRefreshDelays: [TimeInterval] = [0, 5, 15]
 
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     private let queue = DispatchQueue(label: "battery-meter.refresh")
     private let logitech = LogitechBattery()
     private var timer: Timer?
+    private var connectNotification: IOBluetoothUserNotification?
     private var lastUpdate: Date?
 
     /// Devices that stop reporting (asleep mouse, disconnected headphones) keep
@@ -29,6 +33,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         NSWorkspace.shared.notificationCenter.addObserver(
             self, selector: #selector(refresh), name: NSWorkspace.didWakeNotification, object: nil)
+        // Also fires once for every device already connected, which registers their
+        // disconnect notifications too.
+        connectNotification = IOBluetoothDevice.register(
+            forConnectNotifications: self, selector: #selector(bluetoothConnected(_:device:)))
+    }
+
+    @objc private func bluetoothConnected(_ notification: IOBluetoothUserNotification, device: IOBluetoothDevice) {
+        device.register(forDisconnectNotification: self, selector: #selector(bluetoothDisconnected(_:device:)))
+        for delay in Self.connectRefreshDelays {
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in self?.refresh() }
+        }
+    }
+
+    @objc private func bluetoothDisconnected(_ notification: IOBluetoothUserNotification, device: IOBluetoothDevice) {
+        notification.unregister()
+        refresh()
     }
 
     @objc private func refresh() {
