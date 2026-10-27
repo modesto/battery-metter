@@ -80,7 +80,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let font = NSFont.menuBarFont(ofSize: 0)
         let title = NSMutableAttributedString()
         for (i, entry) in entries.enumerated() {
-            let color = color(for: entry.device, fresh: entry.fresh)
+            let color = color(for: entry.device, fresh: entry.fresh || connectedIDs.contains(entry.device.id))
             if i > 0 { title.append(NSAttributedString(string: "  ")) }
             title.append(symbol(entry.device.kind.symbolName, font: font, color: color))
             if entry.device.charging { title.append(symbol("bolt.fill", font: font, color: color, scale: .small)) }
