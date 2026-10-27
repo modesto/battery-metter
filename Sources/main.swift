@@ -15,6 +15,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// Devices that stop reporting (asleep mouse, disconnected headphones) keep
     /// showing their last known level, dimmed.
     private var lastSeen: [String: (device: BatteryDevice, fresh: Bool)] = [:]
+    /// Devices still connected even if they didn't report a level in the last read.
+    private var connectedIDs: Set<String> = []
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         statusItem.button?.title = "…"
@@ -34,11 +36,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             guard let self else { return }
             let bt = BluetoothBattery.read()
             let logi = self.logitech.read()
-            DispatchQueue.main.async { self.apply(bluetooth: bt, logitech: logi) }
+            DispatchQueue.main.async { self.apply(bluetooth: bt.devices, logitech: logi, connected: bt.connectedIDs) }
         }
     }
 
-    private func apply(bluetooth bt: [BatteryDevice], logitech logi: [BatteryDevice]) {
+    private func apply(bluetooth bt: [BatteryDevice], logitech logi: [BatteryDevice], connected: Set<String>) {
+        connectedIDs = connected
         for key in lastSeen.keys { lastSeen[key]?.fresh = false }
         for device in bt + logi { lastSeen[device.id] = (device, true) }
         lastUpdate = Date()
@@ -116,7 +119,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         for entry in entries {
             var text = "\(entry.device.name) — \(entry.device.percent)%"
             if entry.device.charging { text += " (charging)" }
-            if !entry.fresh { text += " (not connected, last known)" }
+            if !entry.fresh {
+                text += connectedIDs.contains(entry.device.id)
+                    ? " (connected, not reporting battery, last known)"
+                    : " (not connected, last known)"
+            }
             let item = NSMenuItem(title: text, action: nil, keyEquivalent: "")
             item.image = NSImage(systemSymbolName: entry.device.kind.symbolName, accessibilityDescription: nil)
             menu.addItem(item)

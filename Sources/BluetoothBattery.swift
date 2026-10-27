@@ -3,14 +3,16 @@ import Foundation
 /// Reads battery levels of connected Bluetooth devices (headphones, AirPods, Apple
 /// peripherals...) from `system_profiler`, which exposes the levels reported via HFP/AAP.
 enum BluetoothBattery {
-    static func read() -> [BatteryDevice] {
+    /// `connectedIDs` also includes connected devices that aren't reporting a level right
+    /// now (some headphones, e.g. Soundcore, only report it intermittently).
+    static func read() -> (devices: [BatteryDevice], connectedIDs: Set<String>) {
         let task = Process()
         task.executableURL = URL(fileURLWithPath: "/usr/sbin/system_profiler")
         task.arguments = ["SPBluetoothDataType", "-json"]
         let pipe = Pipe()
         task.standardOutput = pipe
         task.standardError = FileHandle.nullDevice
-        do { try task.run() } catch { return [] }
+        do { try task.run() } catch { return ([], []) }
         let data = pipe.fileHandleForReading.readDataToEndOfFile()
         task.waitUntilExit()
 
@@ -18,21 +20,25 @@ enum BluetoothBattery {
             let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
             let controllers = json["SPBluetoothDataType"] as? [[String: Any]],
             let connected = controllers.first?["device_connected"] as? [[String: Any]]
-        else { return [] }
+        else { return ([], []) }
 
         var devices: [BatteryDevice] = []
+        var connectedIDs: Set<String> = []
         for entry in connected {
             for (name, value) in entry {
-                guard let info = value as? [String: Any], let percent = level(info) else { continue }
+                guard let info = value as? [String: Any] else { continue }
+                let id = "bt-\(info["device_address"] as? String ?? name)"
+                connectedIDs.insert(id)
+                guard let percent = level(info) else { continue }
                 devices.append(BatteryDevice(
-                    id: "bt-\(info["device_address"] as? String ?? name)",
+                    id: id,
                     name: name,
                     kind: kind(info["device_minorType"] as? String),
                     percent: percent,
                     charging: false))
             }
         }
-        return devices
+        return (devices, connectedIDs)
     }
 
     private static func level(_ info: [String: Any]) -> Int? {
