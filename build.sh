@@ -7,7 +7,8 @@ APP=build/BatteryMeter.app
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS"
 cp Info.plist "$APP/Contents/Info.plist"
-swiftc -O -target arm64-apple-macos14.0 Sources/*.swift -o "$APP/Contents/MacOS/BatteryMeter"
+swift build -c release --arch arm64
+cp "$(swift build -c release --arch arm64 --show-bin-path)/BatteryMeter" "$APP/Contents/MacOS/BatteryMeter"
 codesign --force --sign - "$APP"
 echo "Built $APP"
 

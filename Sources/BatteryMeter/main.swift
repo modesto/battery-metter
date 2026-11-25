@@ -1,4 +1,5 @@
 import AppKit
+import BatteryMeterCore
 import IOBluetooth
 import ServiceManagement
 

@@ -25,6 +25,14 @@ A tiny macOS menu bar app that shows the battery level of your wireless peripher
 
 The app is ad-hoc signed. On first launch macOS asks for Bluetooth permission, used to refresh when devices connect or disconnect.
 
+## Tests
+
+```sh
+swift test
+```
+
+The parsing and protocol logic lives in the `BatteryMeterCore` library and is covered by unit tests; the app target only does the system calls.
+
 ## How it works
 
 - **Bluetooth:** reads levels from `system_profiler SPBluetoothDataType`. For devices it has no level for (e.g. some Soundcore headphones), it falls back to the accessory power sources macOS keeps, the same ones System Settings and `pmset -g accps` show.
