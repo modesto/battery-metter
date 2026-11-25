@@ -34,3 +34,7 @@ The app is ad-hoc signed. On first launch macOS asks for Bluetooth permission, u
 
 - The Bluetooth fallback uses a private IOKit function (`IOPSCopyPowerSourcesByType`), so a macOS update may break it.
 - Only devices that report their battery to macOS, or Logitech devices speaking HID++ 2.0, are shown.
+
+## License
+
+[MIT](LICENSE)
