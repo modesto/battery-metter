@@ -60,7 +60,7 @@ enum BluetoothBattery {
         for source in IOPSCopyPowerSourcesList(info).takeRetainedValue() as NSArray as [CFTypeRef] {
             guard
                 let desc = IOPSGetPowerSourceDescription(info, source)?.takeUnretainedValue() as? [String: Any],
-                desc[kIOPSTransportTypeKey] as? String == "Bluetooth",
+                (desc[kIOPSTransportTypeKey] as? String)?.hasPrefix("Bluetooth") == true,
                 let name = desc[kIOPSNameKey] as? String,
                 let percent = desc[kIOPSCurrentCapacityKey] as? Int
             else { continue }
